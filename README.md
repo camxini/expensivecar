@@ -1,4 +1,4 @@
-# expensivecar
+# raspberrypi-car
 **Phase1:** ZJU SRTP Program - A car using Raspberry Pi for route planning
 
 Finished on 24 May, 2025
