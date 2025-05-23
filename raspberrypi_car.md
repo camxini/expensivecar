@@ -45,7 +45,7 @@ example = 23 # 23是物理引脚16对应的BCM编码
 
 这是一种简单的定义一个引脚example的方式，它的物理引脚号是16，BCM引脚号是23.
 
-当然，标准的定义引脚方式是这样的：
+然后再加上这个：
 
 ```python
 GPIO.setup(21, GPIO.INPUT)
@@ -143,7 +143,30 @@ HC-SR04是最经典的超声波测距模块了，网上有很成熟的教程：[
 
 当然这个教程是连接Arduino的，里面的代码也是arduino语言，这个需要换成在树莓派里可以运行的python代码：
 
-add code here
+```python
+TRIG = 23
+ECHO = 24 #初始化引脚，取决于你把超声波的trig和echo接在了哪个引脚上
+
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+
+while(1)
+{
+  GPIO.output(TRIG, True)
+  time.sleep(0.00001)
+  GPIO.output(TRIG, False)
+  start_time = time.time()
+  stop_time = time.time()
+  while GPIO.input(ECHO) == 0:
+    start_time = time.time()
+  while GPIO.input(ECHO) == 1:
+    stop_time = time.time()
+  delta_time = stop_time - start_time
+  distance = (delta_time * 34000） / 2 # 声速340m/s
+}
+```
+
+这个代码的逻辑很明确，就是发送记一个时间，接收记一个时间，然后用声速计算距离，输出的distance就是测量到的距离。
 
 #### 2.5.2 超声波测距的原理
 
