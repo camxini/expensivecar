@@ -264,7 +264,7 @@ ubnutu mate就是一个为了让ubuntu系统能够稳定运行而单独建立的
 #7  ubuntu-22.04.4-desktop-amd64.iso
 #8  ubuntu-mate-18.04.5-desktop-amd64.iso
 #9  ubuntu-mate-20.04.1-desktop-arm64+raspi4.img.xz
-#10 ubnutu-mate-20.04-beta1-desktop-arm64+raspi4.img,xz
+#10 ubuntu-mate-20.04-beta1-desktop-arm64+raspi4.img,xz
 ```
 
 已知我的树莓派4B的系统需要满足以下条件才能运行：
@@ -276,4 +276,16 @@ ubnutu mate就是一个为了让ubuntu系统能够稳定运行而单独建立的
 - 树莓派只支持img的镜像文件，iso的它不认识。
 
 那么就只有4号选手适合这份工作了，我们拿出4号选手，准备进行烧录。
+
+烧录其实并不难，只需要把树莓派的c口连接到电脑的USB，然后下载一个树莓派官方的烧录软件raspberry pi imager，再把你树莓派自带的存储卡和电脑连接好。
+
+打开raspberry pi imager以后，先选择树莓派设备(raspberry pi 4)，然后再选择一个烧录的系统，再选择刚才的SD卡。
+
+选择系统的时候，他会有树莓派官方的系统Raspberry Pi OS, 这个我没试过，但是听别人说挺好用的，好像是ubuntu改的系统，感兴趣的话可以试试。
+
+当然，ubuntu的系统可扩展性好一点，所以我还是选择ubuntu. 选系统的时候选use custom, 然后找到你自己的电脑里的那个img镜像就可以了。
+
+都选好以后开始烧录，等待完成就可以。
+
+如果有报错或者卡住的话，看看你的系统是不是选错了，是不是选成不符合树莓派要求的了。
 
