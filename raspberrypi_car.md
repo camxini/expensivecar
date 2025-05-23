@@ -360,3 +360,44 @@ ping www.baidu.com
 
 如果成功联网了，我们来配置ssh：
 
+首先，确保你的电脑和树莓派连接到了同一个wifi，不要电脑连着校网，树莓派连着你的手机热点。
+
+然后，在树莓派上，获取树莓派的ip地址：
+
+```text
+hostname -I
+```
+
+记住这个ip地址，一会连接ssh的时候会有用。
+
+在你自己的电脑上获取ip地址（获取自己电脑这一步现在没有用，以后会有用）：
+
+```text
+ipconfig
+```
+
+如果你是无线的wifi，去找无线局域网下面的IPv4地址；如果是有线网络，去找以太网适配器下面的IPv4地址。
+
+在树莓派上启用ssh:
+
+```text
+sudo systemctl enable ssh
+sudo systemctl start ssh
+```
+
+可以通过下面的代码检查ssh是否已经启用：
+
+```
+sudo systemctl status ssh
+```
+
+然后在windows命令行里，输入：
+
+```
+ssh ubuntu@ip
+```
+
+其中，ubuntu是你的树莓派的用户名，ip是树莓派的ip地址。
+
+如果这个时候你的电脑命令行的前缀变成了ubuntu@ubuntu，那么恭喜你，你已经成功连接了ssh, 这个时候你在这个windows窗口里输入命令，和你在树莓派里面输入命令是一样的。
+
