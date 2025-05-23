@@ -482,5 +482,5 @@ sudo systemctl start vncserver-x11-serviced.service
 
 在你自己的电脑上，去[realvnc官网](https://www.realvnc.com/en/connect/download/viewer/)下载并且安装上RealVNC Viewer，运行RealVNC Viewer以后输入你的树莓派ip，再输入你刚才设的密码。如果成功，你会看到ubuntu的桌面。
 
-另外，RealVNC虽然是免费的，但是它默认是收费的，需要你通过一个很隐蔽的地方切换到免费版。具体可以看这里：[链接](https://topstip.com/realvnc-is-taking-down-its-free-family-plan-on-17-june/?via=E07513)
+另外，RealVNC虽然可以是免费的，但是它默认是收费的，需要你通过一个很隐蔽的地方切换到免费版。具体可以看这里：[链接](https://topstip.com/realvnc-is-taking-down-its-free-family-plan-on-17-june/?via=E07513)
 
