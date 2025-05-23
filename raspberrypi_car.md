@@ -447,3 +447,40 @@ sudo reboot
 
 #### 3.5.2 远程桌面连接
 
+配置好图形界面以后，树莓派已经可以正常显示桌面了。如果你不想让树莓派接着一个显示屏，或者以后因为树莓派装在来回动小车上而觉得拿着显示屏到处跑非常抽象的话，你可以尝试用远程桌面连接。
+
+**注意：** 远程桌面连接会经常性的出现bug或者连接失败，就算连接上了，显示的桌面分辨率以及处理能力也堪忧，我个人不建议用这种方法。如果真的觉得拿着显示屏跑很抽象，你可以试试X11转发，但是这部分我还没做过，可能以后会做。
+
+在树莓派里，先打开远程桌面功能。具体在Setting - Sharing - Remote desktop, 然后密码什么的自己设置一下。
+
+常见的远程桌面连接有两种方式：
+
+- Windows官方的远程桌面连接：直接在开始菜单搜索远程桌面连接，然后输入树莓派的ip和你刚才设置的密码，就可以连接了。会出现蓝屏和黑屏，卡在某种蓝屏和黑屏的界面都是常见的bug，没有解决方法，直接放弃远程桌面连接就可以。
+- 用RealVNC Server: 这种方法确实是ubuntu和树莓派官方推荐的，但是如果上面那个方法都做不到，这个方法基本就废了。但是还是说说细节吧：
+
+在树莓派里运行：
+
+```text
+sudo apt install realvnc-vnc-server realvnc-vnc-viewer
+```
+
+如果报错说没有这个包，就要自己去realvnc官网上下载ubuntu对应的.deb安装包（[链接](https://www.realvnc.com/en/connect/download/vnc/)），然后通过以下命令安装：
+
+```text
+sudo dpkg -i xxx.deb
+sudo apt -f install
+```
+
+其中，xxx.deb是下载下来的.deb包的名称。然后启用vnc server:
+
+```text
+sudo systemctl enable vncserver-x11-serviced.service
+sudo systemctl start vncserver-x11-serviced.service
+```
+
+如果要求你设置密码的话，就设置一个。
+
+在你自己的电脑上，去[realvnc官网](https://www.realvnc.com/en/connect/download/viewer/)下载并且安装上RealVNC Viewer，运行RealVNC Viewer以后输入你的树莓派ip，再输入你刚才设的密码。如果成功，你会看到ubuntu的桌面。
+
+另外，RealVNC虽然是免费的，但是它默认是收费的，需要你通过一个很隐蔽的地方切换到免费版。具体可以看这里：[链接](https://topstip.com/realvnc-is-taking-down-its-free-family-plan-on-17-june/?via=E07513)
+
