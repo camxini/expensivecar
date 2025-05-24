@@ -282,7 +282,115 @@ daemon=True表示主程序结束时，这个thread也会结束。
 
 以下是截止到现在的完整代码，用来给定一个电机转速rpm，然后让电机转动：
 
-add code here
+```python
+import RPi.GPIO as GPIO
+import time
+import threading
+import numpy as np
+
+ENA = 20
+IN1 = 5
+IN2 = 6
+ENCODER_A = 2
+ENCODER_B = 3
+
+PPR = 1560
+
+class Encoder:
+    def __init__(self, pin_a, pin_b)
+        self.pin_a = pin_a
+        self.pin_b = pin_b
+        self.count = 0
+        self.last_time = time.time()
+        self.lock = threading.Lock() # 创建一个锁，后续程序运行要先调用锁(with)才能运行，避免一个变量同时被多个地方改掉
+    
+        GPIO.setup(self.pin_a, GPIO.IN)
+        GPIO.setup(self.pin_b, GPIO.IN)
+
+    def _increment(self, channel): # 用来计算count
+        a = GPIO.input(self.pin_a)
+        b = GPIO.input(self.pin_b)
+        direction = 1 if a != b else -1
+        with self.lock:
+            self.count += direction
+
+    def get_pulse_freq(self): # 用来根据count计算电机每秒脉冲数
+        with self.lock:
+            now = time.time()
+            dt = now - self.last_time
+            freq = self.count / dt  # Hz
+            self.count = 0
+            self.last_time = now
+        return freq
+
+class Motor:
+    def __init__(self, ena, in1, in2):
+        self.ena = ena
+        self.in1 = in1
+        self.in2 = in2
+        GPIO.setup(self.ena, GPIO.OUT)
+        GPIO.setup(self.in1, GPIO.OUT)
+        GPIO.setup(self.in2, GPIO.OUT)
+        self.pwm = GPIO.PWM(self.ena, 1000)
+        self.pwm.start(0)
+
+    def set(self, direction, duty_cycle):
+        if direction == 'forward':
+            GPIO.output(self.in1, GPIO.HIGH)
+            GPIO.output(self.in2, GPIO.LOW)
+        elif direction == 'backward':
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.HIGH)
+        else:
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.LOW)
+        self.pwm.ChangeDutyCycle(duty_cycle)
+
+    def stop(self):
+        self.set('stop', 0)
+        self.pwm.stop()
+
+def pwm_to_rpm(n_pwm, ppr):
+    return (n_pwm / (4 * ppr)) * 60
+
+def rpm_to_pwm_linear(rpm_target):
+    pwm = (rpm_target - b) / a
+    pwm = max(0, min(100, pwm))
+    return pwm
+
+def encoder_thread_func(): # 读取电机的每秒脉冲数并转换成rpm
+    while True:
+        freq = encoder.get_pulse_freq()
+        rpm = pwm_to_rpm(freq, PPR)
+        time.sleep(0.5)
+
+# 初始化
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+motor = Motor(ENA, IN1, IN2)
+encoder = Encoder(ENCODER_A, ENCODER_B)
+
+pwms = np.array([20, 30, 40, 50, 60, 70, 80, 90, 100])
+rpms = np.array([10, 22, 35, 48, 60, 71, 79, 85, 90])
+a, b = np.polyfit(pwms, rpms, 1)
+
+encoder_thread = threading.Thread(target=encoder_thread_func, daemon=True)
+encoder_thread.start()
+
+try:
+    while True:
+        target_rpm = float(input("输入目标转速rpm: "))
+        pwm_duty = rpm_to_pwm_linear(target_rpm)
+        motor.set('forward', pwm_duty)
+        print(f"目标RPM: {target_rpm}, 对应PWM占空比: {pwm_duty:.2f}%")
+
+except KeyboardInterrupt:
+    print("程序终止")
+
+finally:
+    motor.stop()
+    GPIO.cleanup()
+```
 
 #### 2.2.4 编码器电机的PID转速控制
 
