@@ -428,11 +428,168 @@ Kd代表的是你把水温往你理想水温调的时候的保守程度，Kd越�
 
 因为PID可以自己调节，假如说现在电机的转速小于理想的电机转速，那么不管现在的占空比是多少，它都会调大占空比，而这个占空比我们不需要知道。所以，我们只需要关注电机的转速rpm就可以了。
 
+或者你可以理解为，如果有output=pid(rpm)，那么PID会自己去适配占空比，这个输出的output也是PWM占空比的值。
+
 （也就是说，加入了PID以后，整体的逻辑反而会简单一些）
 
 利用python的simple_pid库可以实现转速调节，以一个电机为例，需要创建一个和PID有关的函数，比如这样：
 
-add code here
+```python
+def pid_control_loop(motor, encoder, pid):
+    while True:
+        current_rpm = encoder.current_rpm
+        with lock:
+            pid.setpoint = target_rpm
+        
+        output = pid(current_rpm)
+        pwm_duty = max(0, min(100, output))
+        direction = 'forward' if output >= 0 else 'backward'
+        motor.set(direction, abs(pwm_duty))
+        
+        print(f"Target: {target_rpm:.1f} RPM | Current: {current_rpm:.1f} RPM | PWM: {pwm_duty:.1f}%")
+        time.sleep(0.1)
+```
+
+这样就实现了给定目标转速target_rpm, 实际转速current_rpm的时候，PID会自己计算出占空比output的功能。
+
+接下来需要再把完整程序放上来一次，在这次里，我们加入了__main__函数，也就是整个程序的主函数，让代码更容易维护：
+
+```python
+import RPi.GPIO as GPIO
+import time
+import threading
+import numpy as np
+from simple_pid import PID
+
+ENA = 20
+IN1 = 5
+IN2 = 6
+ENCODER_A = 2
+ENCODER_B = 3
+PPR = 1560
+
+# ------------------------- 编码器类 -------------------------
+class Encoder:
+    def __init__(self, pin_a, pin_b):
+        self.pin_a = pin_a
+        self.pin_b = pin_b
+        self.count = 0
+        self.current_rpm = 0.0
+        self.last_time = time.time()
+        self.lock = threading.Lock()
+        
+        GPIO.setup(self.pin_a, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.pin_b, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(self.pin_a, GPIO.BOTH, callback=self._increment)
+
+    def _increment(self, channel):
+        a = GPIO.input(self.pin_a)
+        b = GPIO.input(self.pin_b)
+        direction = 1 if a != b else -1
+        with self.lock:
+            self.count += direction
+
+    def get_pulse_freq(self):
+        with self.lock:
+            now = time.time()
+            dt = now - self.last_time
+            freq = self.count / dt if dt != 0 else 0
+            self.count = 0
+            self.last_time = now
+        return freq
+
+    def update_rpm(self):
+        while True:
+            freq = self.get_pulse_freq()
+            self.current_rpm = (freq / (4 * PPR)) * 60
+            time.sleep(0.1)
+
+# ------------------------- 电机类 -------------------------
+class Motor:
+    def __init__(self, ena, in1, in2):
+        self.ena = ena
+        self.in1 = in1
+        self.in2 = in2
+        GPIO.setup([self.ena, self.in1, self.in2], GPIO.OUT)
+        self.pwm = GPIO.PWM(self.ena, 1000)
+        self.pwm.start(0)
+
+    def set(self, direction, duty_cycle):
+        if direction == 'forward':
+            GPIO.output(self.in1, GPIO.HIGH)
+            GPIO.output(self.in2, GPIO.LOW)
+        elif direction == 'backward':
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.HIGH)
+        else:
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.LOW)
+        self.pwm.ChangeDutyCycle(duty_cycle)
+
+    def stop(self):
+        self.set('stop', 0)
+        self.pwm.stop()
+
+# ------------------------- 全局变量 -------------------------
+target_rpm = 0.0
+lock = threading.Lock()
+
+# ------------------------- 线程函数 -------------------------
+def pid_control_loop(motor, encoder, pid):
+    while True:
+        current_rpm = encoder.current_rpm
+        with lock:
+            pid.setpoint = target_rpm
+        
+        output = pid(current_rpm)
+        pwm_duty = max(0, min(100, output))
+        direction = 'forward' if output >= 0 else 'backward'
+        motor.set(direction, abs(pwm_duty))
+        
+        print(f"Target: {target_rpm:.1f} RPM | Current: {current_rpm:.1f} RPM | PWM: {pwm_duty:.1f}%")
+        time.sleep(0.1)
+
+def input_thread():
+    global target_rpm
+    while True:
+        try:
+            new_target = float(input("输入目标转速rpm: "))
+            with lock:
+                target_rpm = new_target
+        except ValueError:
+            print("请输入有效数字")
+
+# ------------------------- 主程序 -------------------------
+if __name__ == "__main__":
+    GPIO.setmode(GPIO.BCM)
+    
+    motor = Motor(ENA, IN1, IN2)
+    encoder = Encoder(ENCODER_A, ENCODER_B)
+    
+    pid = PID(
+        Kp=1.0,
+        Ki=0.1,
+        Kd=0.05,
+        setpoint=0,
+        output_limits=(-100, 100),
+        sample_time=0.1
+    )
+
+    threading.Thread(target=input_thread, daemon=True).start()
+    threading.Thread(target=encoder.update_rpm, daemon=True).start()
+    threading.Thread(target=pid_control_loop, args=(motor, encoder, pid), daemon=True).start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("程序终止")
+    finally:
+        motor.stop()
+        GPIO.cleanup()
+```
+
+当然，这里的输出都是“Target_RPM | Current_RPM | PWM”的形式，并没有画转速随着时间的变化图像，所以看稳定性会稍微麻烦一些。但是毕竟是电机，转速不必要求的那么严格，差不多稳定了就好。
 
 #### 2.2.5 通过键盘控制电机运动
 
