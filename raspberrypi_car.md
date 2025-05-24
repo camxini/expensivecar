@@ -599,12 +599,14 @@ if __name__ == "__main__":
 
 因为键盘需要输入wasd，因此没办法输入电机的rpm了，这里默认rpm=30. wasd的控制逻辑如下：
 
-- w: rpm_left = 30    rpm_right = 30
-- s: rpm_left = -30   rpm_right = -30
-- a: rpm_left = -30   rpm_right = 30
-- d: rpm_left = 30    rpm_right = -30
-- w & a: rpm_left = 0    rpm_right = 30
-- w & d: rpm_left = 30   rpm_right = 0
+```text
+w: rpm_left = 30    rpm_right = 30
+s: rpm_left = -30   rpm_right = -30
+a: rpm_left = -30   rpm_right = 30
+d: rpm_left = 30    rpm_right = -30
+w & a: rpm_left = 0    rpm_right = 30
+w & d: rpm_left = 30   rpm_right = 0
+```
 
 s&a和s&d没做，我实在想不出来这两种情况小车要怎么动。总之，wasd的控制代码是这样的：
 
