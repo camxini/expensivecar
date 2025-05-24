@@ -50,7 +50,8 @@ example = 23 # 23是物理引脚16对应的BCM编码
 ```python
 GPIO.setup(21, GPIO.INPUT)
 GPIO.setup(23, GPIO.OUTPUT)
-``` 
+```
+
 就把引脚作为GPIO输入或者输出了。
 
 **关于GPIO引脚是否支持中断：** 所有的有BCM编号的GPIO引脚都支持中断，这和Arduino有很大区别。
@@ -83,22 +84,136 @@ A相是输出正交脉冲信号的，B相和A相相位差差了90度，差的相
 我的编码器电机输入的是PWM信号，但是实际上我们要控制的是电机的转速rpm，它们之间的转换关系是：
 
 $$
-w_{rpm} = f_{pwm} / (n * PPR) * 60
+w_{rpm} = n_{pwm} / (n * PPR) * 60
 $$
 
 其中，PPR是电机每转脉冲数，在电机的技术文档里会提到。
+
+另外需要注意，$n_{pwm} 并不是PWM波的频率，而是电机每秒输出的的编码器脉冲数量。
 
 n表示的是采用的是n倍频，就是信号里不同频率成分相对于基频的倍数关系。通常信号分析的时候会有一个图谱，显示哪个频率的信号出现次数是峰值，那个就是基频，然后会有基频的倍数频率出现小一点的峰值，这就是几倍频。这个通常用在故障分析和信号排查里面，在电机这里这个东西没那么重要，n设成几都行，我用的是四倍频。
 
 这样就建立了PWM频率和转速rpm之间的关系。
 
-#### 2.2.3 编码器电机的PID转速控制
+#### 2.2.3 让电机转动
+
+首先，先不考虑rpm和PWM之间的关系，先只考虑用PWM控制电机转速。PWM是占空比，表示的是一个只有0和1的序列里面1占总数的百分比。第一步你需要初始化引脚、初始化PWM，先以一个电机为例：
+
+```python
+ENA = 20  # ENA是用来给电机PWM信号的
+IN1 = 5   # IN1是用来让电机正转的
+IN2 = 6   # IN2是用来让电机反转的
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False) # 如果你觉得warning出现的太多很烦人可以把warning关掉
+
+GPIO.setup(ENA, GPIO.OUT)
+GPIO.setup(IN1, GPIO.OUT)
+GPIO.setup(IN2, GPIO.OUT)
+
+# 初始化pwm，设定pwm的频率是1kHz
+pwm = GPIO.PWM(ENA, 1000)
+pwm.start(0)
+```
+接下来，我们设定一个函数，函数里如果给定forward就让电机往前转，如果给定backward就让电机往后转，同时要设置好pwm的占空比：
+
+```python
+def set_motor(direction, duty_cycle)
+  if direction == 'forward':
+        GPIO.output(IN1, GPIO.HIGH)
+        GPIO.output(IN2, GPIO.LOW)
+    elif direction == 'backward':
+        GPIO.output(IN1, GPIO.LOW)
+        GPIO.output(IN2, GPIO.HIGH)
+    else:
+        GPIO.output(IN1, GPIO.LOW)
+        GPIO.output(IN2, GPIO.LOW)
+
+    pwm.ChangeDutyCycle(duty_cycle) # 设置pwm占空比的函数
+```
+
+接下来是主程序，用的是try-except结构（有关try-except可以看这里：[链接](https://blog.csdn.net/qdPython/article/details/121539451)）：
+
+```python
+try:
+    # 让电机正转50%占空比，持续5秒
+    set_motor('forward', 50)
+    time.sleep(5)
+
+    # 再反转50%占空比，持续5秒
+    set_motor('backward', 50)
+    time.sleep(5)
+
+    # 停止电机
+    set_motor('stop', 0)
+
+except KeyboardInterrupt:
+    pass
+
+finally:
+    pwm.stop()
+    GPIO.cleanup()
+```
+
+运行这个python程序，电机就会无限时间内先正转5s，再反转5s. 如果你发现电机的转向是反的，有两种解决方法：第一种是改代码里面控制正反的HIGH和LOW，第二种是把电机驱动模块的IN1和IN2倒过来，原来接IN1的去接IN2，原来接IN2的去接IN1。
+
+如果你想要用rpm来控制电机，直接控制电机的转速的话，就要用到我之前提到的rpm和PWM的转换关系:
+
+$$
+w_{rpm} = n_{pwm} / (4 * PPR) * 60
+$$
+
+这个关系表明了电机每秒脉冲数量和rpm之间的关系。根据我的技术文档，PPR=1560，这个会根据电机的不同而有所不同。
+
+现在我们需要做的是，输入一个rpm，把rpm转换成电机每秒脉冲数，然后用这个每秒脉冲数去控制电机。
+
+我们需要先获取电机每秒的脉冲数量：
+
+```python
+def get_pulse_freq(self):
+    now = time.time()
+    dt = now - self.last_time
+    freq = self.count / dt  # Hz
+    self.count = 0
+    self.last_time = now
+    return freq
+```
+
+有关self可以看这里：[self](https://blog.csdn.net/luanfenlian0992/article/details/105146518)
+
+这篇文章有点复杂，可能会看不懂，举个例子你就明白了：
+
+```python
+class Dog:
+    def __init__(self, name):
+        self.name = name
+    def bark(self):
+        print(f"{self.name}: Woof!")
+```
+
+你输入了一个name给self.name，那么之后你就可以在任何地方调用self.name作为name的值了，哪怕是在这个class外面，只要有self，都可以使用。
+
+有点说多了，刚才我们获取了电机每秒的脉冲数量，接下来我们编写从每秒脉冲数到rpm的转换关系函数：
+
+```python
+def pwm_to_rpm(n_pwm, ppr):
+    return (n_pwm / (4 * ppr) * 60)
+```
+
+编写好以后，在主程序里：
+
+```python
+PPR = 1560
+n_pwm = encoder.get_pulse_freq()
+rpm = pwm_to_rpm(n_pwm, PPR)
+```
+
+#### 2.2.4 编码器电机的PID转速控制
 
 利用python的simple_pid库可以实现转速调节，以一个电机为例，代码如下：
 
 add code here
 
-#### 2.2.4 通过键盘控制点击运动
+#### 2.2.5 通过键盘控制点击运动
 
 add code here
 
@@ -144,9 +259,10 @@ HC-SR04是最经典的超声波测距模块了，网上有很成熟的教程：[
 当然这个教程是连接Arduino的，里面的代码也是arduino语言，这个需要换成在树莓派里可以运行的python代码：
 
 ```python
-TRIG = 23
-ECHO = 24 #初始化引脚，取决于你把超声波的trig和echo接在了哪个引脚上
+TRIG = 14
+ECHO = 15 #初始化引脚，取决于你把超声波的trig和echo接在了哪个引脚上
 
+GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 
@@ -163,7 +279,7 @@ while(1)
     stop_time = time.time()
   delta_time = stop_time - start_time
   distance = (delta_time * 34000） / 2 # 声速340m/s
-  time.sleep(100)
+  time.sleep(0.1)
 }
 ```
 
@@ -192,7 +308,7 @@ while(1)
 #### 2.7.1 GPIO接口
 
 ```text
-GPIO物理编码 | BCM编号 | 接口
+GPIO物理编码 | GPIO功能编码 | BCM编号 | 接口
 2              -        5V输出接面包板
 4              -        5V输出接树莓派散热风扇
 6              -        GND输出接树莓派散热风扇
