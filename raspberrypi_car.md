@@ -653,6 +653,187 @@ def input_thread():
         time.sleep(0.1)
 ```
 
+---
+
+看来还得再放一次完整代码：
+
+```python
+import RPi.GPIO as GPIO
+import time
+import threading
+import keyboard
+from simple_pid import PID
+
+ENA = 20
+ENB = 21
+ENCODER1_A = 3
+ENCODER1_B = 2
+ENCODER2_A = 17
+ENCODER2_B = 27
+IN1 = 5
+IN2 = 6
+IN3 = 13
+IN4 = 19
+
+PPR = 1560  # 编码器每转脉冲数
+
+# ------------------------- 编码器类 -------------------------
+class Encoder:
+    def __init__(self, pin_a, pin_b):
+        self.pin_a = pin_a
+        self.pin_b = pin_b
+        self.count = 0
+        self.current_rpm = 0.0
+        self.last_time = time.time()
+        self.lock = threading.Lock()
+        
+        GPIO.setup(self.pin_a, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.pin_b, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(self.pin_a, GPIO.BOTH, callback=self._increment)
+
+    def _increment(self, channel):
+        a = GPIO.input(self.pin_a)
+        b = GPIO.input(self.pin_b)
+        direction = 1 if a != b else -1
+        with self.lock:
+            self.count += direction
+
+    def get_pulse_freq(self):
+        with self.lock:
+            now = time.time()
+            dt = now - self.last_time
+            freq = self.count / dt if dt != 0 else 0
+            self.count = 0
+            self.last_time = now
+        return freq
+
+    def update_rpm(self):
+        while True:
+            freq = self.get_pulse_freq()
+            self.current_rpm = (freq / (4 * PPR)) * 60
+            time.sleep(0.1)
+
+# ------------------------- 电机类 -------------------------
+class Motor:
+    def __init__(self, ena, in1, in2):
+        self.ena = ena
+        self.in1 = in1
+        self.in2 = in2
+        GPIO.setup([self.ena, self.in1, self.in2], GPIO.OUT)
+        self.pwm = GPIO.PWM(self.ena, 1000)
+        self.pwm.start(0)
+
+    def set(self, direction, duty_cycle):
+        if direction == 'forward':
+            GPIO.output(self.in1, GPIO.HIGH)
+            GPIO.output(self.in2, GPIO.LOW)
+        elif direction == 'backward':
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.HIGH)
+        else:
+            GPIO.output(self.in1, GPIO.LOW)
+            GPIO.output(self.in2, GPIO.LOW)
+        self.pwm.ChangeDutyCycle(duty_cycle)
+
+    def stop(self):
+        self.set('stop', 0)
+        self.pwm.stop()
+
+# ------------------------- 全局变量 -------------------------
+left_target_rpm = 30
+right_target_rpm = 30
+lock = threading.Lock()
+
+# ------------------------- 控制线程 -------------------------
+def pid_control_loop(motor, encoder, pid, is_left):
+    while True:
+        current_rpm = encoder.current_rpm
+        with lock:
+            target = left_target_rpm if is_left else right_target_rpm
+            pid.setpoint = target
+        
+        output = pid(current_rpm)
+        pwm_duty = max(0, min(100, output))
+        direction = 'forward' if output >= 0 else 'backward'
+        motor.set(direction, abs(pwm_duty))
+        
+        print(f"{'Left' if is_left else 'Right'} Target: {target:.1f} RPM | Current: {current_rpm:.1f} RPM | PWM: {pwm_duty:.1f}%")
+        time.sleep(0.1)
+
+def input_thread():
+    global left_target_rpm, right_target_rpm
+    base_rpm = 30
+    
+    while True:
+        w = keyboard.is_pressed('w')
+        a = keyboard.is_pressed('a')
+        s = keyboard.is_pressed('s')
+        d = keyboard.is_pressed('d')
+        
+        left_rpm = 0.0
+        right_rpm = 0.0
+        
+        if w:
+            left_rpm = base_rpm
+            right_rpm = base_rpm
+        elif s:
+            left_rpm = -base_rpm
+            right_rpm = -base_rpm
+        elif a:
+            left_rpm = -base_rpm
+            right_rpm = base_rpm
+        elif d:
+            left_rpm = base_rpm
+            right_rpm = -base_rpm
+        elif w and a:
+            left_rpm = 0
+            right_rpm = base_rpm
+        elif w and d:
+            left_rpm = base_rpm
+            right_rpm = 0
+        else:
+            left_rpm = 0
+            right_rpm = 0
+        
+        with lock:
+            left_target_rpm = left_rpm
+            right_target_rpm = right_rpm
+        
+        time.sleep(0.1)
+
+# ------------------------- 主程序 -------------------------
+if __name__ == "__main__":
+    GPIO.setmode(GPIO.BCM)
+    
+    # 初始化左右电机和编码器
+    motor_left = Motor(ENA, IN1, IN2)
+    motor_right = Motor(ENB, IN3, IN4)
+    encoder_left = Encoder(ENCODER1_A, ENCODER1_B)
+    encoder_right = Encoder(ENCODER2_A, ENCODER2_B)
+
+    # PID参数配置
+    pid_left = PID(1.0, 0.1, 0.05, setpoint=0, output_limits=(-100, 100))
+    pid_right = PID(1.0, 0.1, 0.05, setpoint=0, output_limits=(-100, 100))
+    
+    # 启动线程
+    threading.Thread(target=input_thread, daemon=True).start()
+    threading.Thread(target=encoder_left.update_rpm, daemon=True).start()
+    threading.Thread(target=encoder_right.update_rpm, daemon=True).start()
+    threading.Thread(target=pid_control_loop, args=(motor_left, encoder_left, pid_left, True), daemon=True).start()
+    threading.Thread(target=pid_control_loop, args=(motor_right, encoder_right, pid_right, False), daemon=True).start()
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("程序终止")
+    finally:
+        motor_left.stop()
+        motor_right.stop()
+        GPIO.cleanup()
+```
+
+这样就可以用键盘的wasd控制小车的移动了。
 
 ### 2.3 激光雷达
 
