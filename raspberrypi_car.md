@@ -589,11 +589,68 @@ if __name__ == "__main__":
         GPIO.cleanup()
 ```
 
+在全局变量里修改target_rpm就可以修改目标转速了。
+
 当然，这里的输出都是“Target_RPM | Current_RPM | PWM”的形式，并没有画转速随着时间的变化图像，所以看稳定性会稍微麻烦一些（但是也要记得调PID哈）。但是毕竟是电机，转速不必要求的那么严格，差不多稳定了就好。
 
 #### 2.2.5 通过键盘控制电机运动
 
-add code here
+刚才所有的代码都是只控制一个电机的转速，如果要用键盘控制电机转动，需要代码里控制两个电机motor_left和motor_right. 所以原来代码里有motor和encoder部分都需要改成两个电机或者两个编码器。
+
+因为键盘需要输入wasd，因此没办法输入电机的rpm了，这里默认rpm=30. wasd的控制逻辑如下：
+
+- w: rpm_left = 30    rpm_right = 30
+- s: rpm_left = -30   rpm_right = -30
+- a: rpm_left = -30   rpm_right = 30
+- d: rpm_left = 30    rpm_right = -30
+- w & a: rpm_left = 0    rpm_right = 30
+- w & d: rpm_left = 30   rpm_right = 0
+
+s&a和s&d没做，我实在想不出来这两种情况小车要怎么动。总之，wasd的控制代码是这样的：
+
+```python
+def input_thread():
+    global left_target_rpm, right_target_rpm
+    base_rpm = 30
+    
+    while True:
+        w = keyboard.is_pressed('w')
+        a = keyboard.is_pressed('a')
+        s = keyboard.is_pressed('s')
+        d = keyboard.is_pressed('d')
+        
+        left_rpm = 0.0
+        right_rpm = 0.0
+        
+        if w：
+            left_rpm = base_rpm
+            right_rpm = base_rpm
+        elif s:
+            left_rpm = -base_rpm
+            right_rpm = -base_rpm
+        elif a:
+            left_rpm = -base_rpm
+            right_rpm = base_rpm
+        elif d:
+            left_rpm = base_rpm
+            right_rpm = -base_rpm
+        elif w and a:
+            left_rpm = 0
+            right_rpm = base_rpm
+        elif w and d:
+            left_rpm = base_rpm
+            right_rpm = 0
+        else:
+            left_rpm = 0
+            right_rpm = 0
+        
+        with lock:
+            left_target_rpm = left_rpm
+            right_target_rpm = right_rpm
+        
+        time.sleep(0.1)
+```
+
 
 ### 2.3 激光雷达
 
