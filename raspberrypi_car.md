@@ -256,6 +256,34 @@ pwm.ChangeDutyCycle(pwm_duty)
 
 这样就做到了给一个我想要的转速，然后让电机转起来的效果。
 
+---
+
+需要介绍一下python的thread库。如果说没有thread的话，我们的程序是这样的：
+
+```python
+while(a == 1)
+{
+    A
+    B
+    C
+}
+```
+
+这个代码在每一次的while循环里，都只能先运行A，A运行完再运行B，以此类推。
+
+如果说A这个语句运行的时间特别长，我又想让A运行的时候同时运行后面的B，那么就要用到thread:
+
+```python
+A_thread = threading.Thread(target=A, daemon=True)
+A_thread.start()
+```
+
+daemon=True表示主程序结束时，这个thread也会结束。
+
+以下是截止到现在的完整代码，用来给定一个电机转速rpm，然后让电机转动：
+
+add code here
+
 #### 2.2.4 编码器电机的PID转速控制
 
 利用python的simple_pid库可以实现转速调节，以一个电机为例，代码如下：
