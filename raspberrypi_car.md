@@ -2,6 +2,8 @@
 
 Time: 2024.4-2025.5
 
+Progress: 小车的搭建，把激光雷达的扫描结果在rviz上显示，进行SLAM建图
+
 ## 1. 硬件配置
 
 ### 1.1 用到的硬件
@@ -297,7 +299,7 @@ ENCODER_B = 3
 PPR = 1560
 
 class Encoder:
-    def __init__(self, pin_a, pin_b)
+    def __init__(self, pin_a, pin_b):
         self.pin_a = pin_a
         self.pin_b = pin_b
         self.count = 0
@@ -306,6 +308,7 @@ class Encoder:
     
         GPIO.setup(self.pin_a, GPIO.IN)
         GPIO.setup(self.pin_b, GPIO.IN)
+        GPIO.add_event_detect(self.pin_a, GPIO.BOTH, callback=self._increment)
 
     def _increment(self, channel): # 用来计算count
         a = GPIO.input(self.pin_a)
@@ -419,11 +422,19 @@ Kd代表的是你把水温往你理想水温调的时候的保守程度，Kd越�
 
 好的，现在你已经有PID的理论基础了，接下来进入实战：
 
-利用python的simple_pid库可以实现转速调节，以一个电机为例，代码如下：
+首先你需要清楚的是，当你引入PID的时候，你不需要在代码里表明PWM占空比与电机转速的显式关系了。
+
+**为什么呢？**
+
+因为PID可以自己调节，假如说现在电机的转速小于理想的电机转速，那么不管现在的占空比是多少，它都会调大占空比，而这个占空比我们不需要知道。所以，我们只需要关注电机的转速rpm就可以了。
+
+（也就是说，加入了PID以后，整体的逻辑反而会简单一些）
+
+利用python的simple_pid库可以实现转速调节，以一个电机为例，需要创建一个和PID有关的函数，比如这样：
 
 add code here
 
-#### 2.2.5 通过键盘控制点击运动
+#### 2.2.5 通过键盘控制电机运动
 
 add code here
 
