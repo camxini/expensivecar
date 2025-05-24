@@ -1,6 +1,6 @@
 # Phase 1 SRTP部分
 
-Time: 2024.4-2025.5
+Time: 2025.4-2025.5
 
 Progress: 小车的搭建，把激光雷达的扫描结果在rviz上显示，进行SLAM建图
 
