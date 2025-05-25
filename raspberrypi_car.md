@@ -1503,3 +1503,53 @@ sudo vim ~/.bashrc
   - :q!: 不保存并退出vim
   - :set number: 显示行号
 
+### 4.6 其他安装
+
+首先需要安装rosinstall以及它的配套功能。你可以理解为rosinstall-generator生成一个应用清单，然后rosinstall按照清单来安装应用，同时下好应用以后，wstool负责日常管理这些应用。平时的应用升级、应用更新什么的都是wstool来进行的。安装过程如下：
+
+```text
+sudo apt install python3-rosinstall python3-rosinstall-generator python3-wstool
+```
+
+还需要安装roslaunch. 它是用来启动launch文件的，launch文件是用来直接启动多个rosrun指令的，这样你就不需要一个一个rosrun来启动了。
+
+```text
+sudo apt install python3-roslaunch
+```
+
+### 4.7 运行roscore
+
+正如它的名字一样，roscore是ros的核心，只有你的终端运行了roscore，你才能使用ros环境，你只需要在命令行里面输入:
+
+```text
+roscore
+```
+
+就可以启动roscore了，想执行其他命令，你需要单独开一个新的终端去执行。如果想停止roscore服务，直接按ctrl+c就可以。
+
+如果启动过程中有报错，大概率是一开始安装ros的时候有东西遗漏了（因为最开始装ros只会装一部分的包，刚才又装了rosdep, roslaunch还有rosinstall，系统发现和这些包绑定的一些包没有安），你只需要再运行一次安装ros的指令：
+
+```text
+sudo apt install ros-noetic-desktop-full
+```
+
+放心，这次安装的东西比较少，会很快就安装完，安装好以后就可以正常启动roscore了。
+
+### 4.8 用海龟仿真器验证ros是否成功启动
+
+如果你已经成功运行了roscore，打开一个新终端，输入：
+
+```text
+sudo apt install ros-noetic-turtlesim
+rosrun turtlesim turtlesim_node
+```
+
+你会看到一个海龟飘在一个蓝色背景上，再打开一个新的终端，输入：
+
+```text
+rosrun turtlesim turtle_teleop_key
+```
+
+你可以通过箭头的上下左右键来控制海龟移动了，如果海龟成功移动，证明你的ros没有任何问题，按q就可以退出键盘操作了。如果你想关闭海龟仿真器，就在海龟仿真器的窗口按ctrl+c.
+
+
