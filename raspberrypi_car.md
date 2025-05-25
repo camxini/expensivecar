@@ -1553,3 +1553,166 @@ rosrun turtlesim turtle_teleop_key
 你可以通过箭头的上下左右键来控制海龟移动了，如果海龟成功移动，证明你的ros没有任何问题，按q就可以退出键盘操作了。如果你想关闭海龟仿真器，就在海龟仿真器的窗口按ctrl+c.
 
 
+## 5. 激光雷达配置
+
+### 5.1 ROS的工作原理
+
+需要创建一个叫catkin_ws的文件夹，文件夹的内部结构如下：
+
+```text
+~/catkin_ws
+  ~/catkin_ws/src
+  ~/catkin_ws/devel
+  ~/catkin_ws/build
+```
+
+catkin_ws是ros的工作空间，所有ros的指令都要在这里面执行。src就是用来放所有的ros包的，而另外两个文件夹会自动生成，所以最初创建的时候可以不创建那两个文件夹，删除文件的时候build和devel也可以放心删掉。
+
+想要编译catkin_ws需要使用指令catkin_make，一旦这个指令下达，就会开始对src进行编译，然后生成一个环境devel和一堆中间文件build.
+
+了解了这些之后，先来创建catkin_ws和src:
+
+```text
+mkdir -p ~/catkin_ws/src
+```
+
+然后初始化src这个文件夹为catkin的工程：
+
+```text
+cd ~/catkin_ws/src
+catkin_init_workspace
+```
+
+再回到catkin_ws文件夹，进行编译：
+
+```text
+cd ..
+catkin_make
+```
+
+(cd ..是返回上一级文件夹的意思，你也可以用cd ~/catkin_ws）
+
+这样就开始了第一次的工作空间编译。如果编译的过程中出现了cmake error，那么就意味着有些包没有安装在你的ubuntu系统里。你需要仔细看一下报错信息，看一些缺什么包，然后一个一个的用sudo apt install安装好。这个没办法很详细的写出来，因为每个人没安装的包都有可能不一样。安装好以后就可以顺利编译了。
+
+和之前安装ROS的时候设置环境变量一样，你需要把工作空间的环境(devel)也加到.bashrc里面：
+
+```text
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
+
+这样就设置好了。以后catkin_make里面的东西有变化，需要编译的时候，只需要在catkin_ws文件夹下catkin_make就可以了（当然，这里也是最经常报错的地方，因为很多时候你填了一个新的库但是没好好配置，然后就来编译，这是一定会报错的）。
+
+### 5.2 检查串口
+
+激光雷达是通过USB连接到树莓派的，而树莓派的不同USB口都有不同名字，在后面我们要进行实际操作的时候要确保对应的串口名字是正确的。先来查看串口名：
+
+```text
+ls /dev/ttyUSB*
+```
+
+正常情况下，输出应该是/dev/ttyUSB0. 你需要获取这个串口的权限：
+
+```text
+sudo usermod -a -G dialout $USER
+```
+
+### 5.3 安装激光雷达驱动包
+
+需要在src文件夹下安装所有的文件，我们需要去到github里，通过git把激光雷达的官方文件clone下来到自己的树莓派里：
+
+```text
+cd ~/catkin_ws/src
+git clone https://github.com/Slamtec/rplidar_ros.git
+```
+
+你可以通过命令
+
+```text
+ls
+```
+
+来查看当前所在文件夹下面的所有文件和文件夹。文件夹会显示为蓝色，文件会显示成白色。然后你会发现，src文件夹下多了一个叫rplidar_ros的文件夹，进入这个文件夹里面：
+
+```
+cd ~/catkin_ws/src/rplidar_ros
+```
+
+或者，因为你已经在src文件夹下，你可以直接用它的子文件夹作为cd命令的开始：
+
+```text
+cd rplidar_ros
+```
+
+进入rplidar_ros以后，继续使用ls命令，你会看到很多的文件。之前提到过，launch文件是用来启动多个rosrun指令的，或者换句话说，launch文件就是用来启动硬件，让硬件开始发挥它的实际功能的。launch文件一般放在launch文件夹里，这个时候你会发现，rplidar_ros这个文件夹下面正好有一个launch文件夹，我们进入这个文件夹：
+
+```text
+cd launch
+```
+
+再使用ls命令，你会发现一个rplidar_a1.launch，这个就是我们的激光雷达的启动文件了。
+
+当然，你也可以通过可视化的界面（显示屏的界面）直接查看文件夹里面的内容。
+
+或者，因为这个文件夹是从github上clone到本地的，你也可以去github上直接查看源文件内容。直接复制git clone指令下的那个网站就可以。
+
+说多了，既然已经clone了一个大大的文件夹到本地，那么就需要编译，编译的过程和之前是一样的：
+
+```text
+cd ~/catkin_ws
+catkin_make
+```
+
+如果没有报错，所有的rplidar的launch文件就都进入了你的catkin_ws工作空间。
+
+### 5.4 启动激光雷达节点
+
+launch文件可以用roslaunch指令直接启动。先进入src文件夹，然后启动rplidar_a1.launch:
+
+```text
+cd ~/catkin_ws/src
+roslaunch rplidar_ros rplidar_a1.launch
+```
+
+roslaunch的语法很简单，就是roslaunch+当前文件夹的下一级文件夹+launch文件，或者如果说launch就在当前文件夹里，那也可以直接roslaunch+launch文件。当然，你也可以使用绝对路径：
+
+```text
+roslaunch ~/catkin_ws/src/rplidar_ros/launch/rplidar_a1.launch
+```
+
+如果没有报错，说明launch文件已经成功启动了。
+
+### 5.5 在rviz里查看激光雷达扫描结果
+
+rviz是一个可视化工具，是用来查看传感器的3D信息的，先安装一下rviz:
+
+```text
+sudo apt install ros-noetic-rviz
+```
+
+然后运行rviz:
+
+```text
+rosrun rviz rviz
+```
+
+或者：
+
+```text
+rviz
+```
+
+这样就打开rviz了。**注意：** 如果你没有远程桌面连接，你必须在与树莓派上直接相连的显示屏上进行上面的操作，因为ssh不支持转发图形界面。
+
+打开rviz以后，你会看到左边有一个工具栏，工具栏里是Displays，也就是你要在右边显示的内容。第一项的fixed frame现在写的是map，map是后面slam建图会用到的话题，现在用不到。激光雷达的话题是/scan，所以把map改成/scan.
+
+然后，你需要点击rviz界面左下角的Add, 来添加一个类型，要不然的话，激光雷达的扫描数据没加进来，也没法在rviz上显示扫描结果。
+
+添加一个LaserScan类型进来就可以了。这个时候如果一切正常，你应该已经能在3D视图里面看到激光雷达的扫描结果了。你可以在左侧的状态栏里面改一个你喜欢的颜色（默认是红色），应该能看出来你现在所在的场景。
+
+如果没有显示，应该是你的波特率或者串口设置错了。串口名字就是你刚才找到的那一个/dev/ttyUSB0，RPLIDAR A1的默认波特率是115200，所以你可以这样来启动roslaunch：
+
+```text
+roslaunch rplidar_ros rplidar.launch serial_port:=/dev/ttyUSB0 serial_baudrate:=115200
+```
+
