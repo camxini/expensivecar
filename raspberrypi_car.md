@@ -1218,3 +1218,189 @@ sudo systemctl start vncserver-x11-serviced.service
 
 另外，RealVNC虽然可以是免费的，但是它默认是收费的，需要你通过一个很隐蔽的地方切换到免费版。具体可以看这里：[链接](https://topstip.com/realvnc-is-taking-down-its-free-family-plan-on-17-june/?via=E07513)
 
+### 3.6 设置系统语言
+
+打开系统设置，选择Region & Language, 然后选择Manage Installed Languages.
+
+进入之后选择Install/Remove Languages, 找到Chinese(Simplified)，开始安装。
+
+安装完成以后，在语言列表里把中文拖到最上面，这个时候系统会询问你是否更新系统目录名称，也就是说，你是否要把Downloads这个文件夹改名叫下载，是否要把Videos这个文件夹改名叫视频等等。我的建议是不要改，因为有些应用他只认英文的路径。
+
+以上是一个正常的ubuntu切换成简体中文的过程，如果你的ubuntu像我一样不太正常，设置里找不到这些选项，也可以在终端里操作（终端按Ctrl+Alt+T打开）：
+
+```text
+sudo apt update
+sudo apt install language-pack-zh-hans language-pack-zh-hans-base
+sudo update-locale LANG=zh_CN.UTF-8
+sudo locale-gen zh_CN.UTF-8
+sudo reboot
+```
+
+这样的话就成功安装了中文语言包，系统应该会问你是否更新系统目录名称，这个和刚才是完全一样的，建议不要更新。
+
+## 4. ROS搭建
+
+### 4.1 版本选择
+
+首先你需要清楚，不同版本的ubuntu对应着不同版本的ROS系统：
+
+```text
+ubuntu 16 -> ROS kinetic
+ubuntu 18 -> ROS melodic
+ubuntu 20 -> ROS noetic
+ubuntu 22 -> ROS humble(ROS2)
+```
+
+humble是ROS2，而其他的是ROS1，也就是说，noetic是ROS1的最后一个版本，也是现在最热门的一个版本。曾经热门的是16对应的kinetic.
+
+那为什么不用humble甚至更新的版本，一定要用ROS1呢？因为ROS2的技术社区还没有完全搭建好，很多的技术还是一片空白，而ROS1已经比较成熟，另外ROS1和ROS2的数据很多是不互通的，突然把所有文件从ROS1变成ROS2也不太容易。
+
+我们安装的是ubuntu 20.04.5 server，所以安装ROS noetic就好。
+
+### 4.2 选择软件源
+
+ROS是一个国外的网站，在国内直接访问的话有的时候会连接不上。但好在国内有很多高校和企业都有ros的镜像，可以调用他们的镜像，这样就避开了需要连国外网站的问题。
+
+先说人在国外的情况，这种情况比较简单（当然如果你某种特殊流量充裕且网速也不错也可以这样做）：
+
+需要先通过代码给定一个软件源，配上这个软件源的密钥。这样当你安装ROS的时候，就会自动定向到这个软件源，如果密钥通过，ROS就会开始安装。
+
+添加ROS官方软件源：
+
+```text
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+```
+
+再安装一下cURL（这个大小写真的没写错）：
+
+```text
+sudo apt install curl
+```
+
+curl是一个传输数据的命令行工具，这样你可以直接把ros官网的密钥直接copy的本地：
+
+```text
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+```
+
+（如果没有权限记得在代码最前面加上sudo）
+
+好的，现在软件源配置好了，跳到下面安装的步骤就可以了。
+
+如果你在国内：
+
+可以看这个教程：[ubuntu安装](https://blog.csdn.net/qq_64671439/article/details/135287166)，下面的东西和这篇文章里面说的差不多。
+
+#### 4.2.1 配置下载服务器
+
+这个和镜像源不太一样，镜像源是你安装ros调用的仓库以及安装好了ros以后更新ros里面所有的东西的时候调用的仓库，而下载服务器是ubuntu系统最底层的设置，影响的是ubuntu的仓库，和ros无关。
+
+但是改成国内的下载服务器下载会快一点，你也可以选择忽略配置下载服务器这一步，影响不大。
+
+具体步骤是：系统设置->软件和更新->下载自，在这里面选国内的镜像源（比如mirrors.aliyun.com），然后关闭就可以了。
+
+#### 4.2.2 配置镜像源
+
+国内有很多的镜像源都可以选，这里列举几个最常用的：
+
+清华源：
+
+```text
+sudo sed -i 's#http://packages.ros.org/ros/ubuntu#http://mirrors.tuna.tsinghua.edu.cn/ros/ubuntu#g' /etc/apt/sources.list.d/ros-latest.list
+```
+
+阿里云源：
+
+```text
+sudo sed -i 's#http://packages.ros.org/ros/ubuntu#http://mirrors.aliyun.com/ros/ubuntu#g' /etc/apt/sources.list.d/ros-latest.list
+```
+
+中科大源：
+
+```text
+sudo sed -i 's#http://packages.ros.org/ros/ubuntu#http://mirrors.ustc.edu.cn/ros/ubuntu#g' /etc/apt/sources.list.d/ros-latest.list
+```
+
+选一个你喜欢的镜像源就行，选好以后运行下面的命令看看软件源是不是换过来了：
+
+```text
+cat /etc/apt/sources.list.d/ros-latest.list
+```
+
+然后再更新一下系统文件(sudo apt update)就可以了。
+
+#### 4.2.3 添加密钥
+
+和上面说的一样，先安装cURL，然后直接去ros官网获取密钥：
+
+```text
+sudo apt install curl
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+```
+
+然后验证密钥是否添加成功：
+
+```text
+apt-key list | grep "ROS"
+```
+
+当然这一步也可以不做，添加密钥的时候就会直接验证密钥是否有效。但如果说添加了密钥显示的是密钥有问题，你就需要自己去网上找密钥了。前面提到的文章里有一个，但是谁也不能保证这个密钥现在还好用：
+
+```text
+sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+```
+
+如果不行就只能拜托你自己去网上搜刮点密钥出来了。或者如果你能访问ROS官方的github页面的话，你可以直接去这里：[链接](https://raw.githubusercontent.com/ros/rosdistro/master/ros.key)
+
+把页面内容保存为ros.key，然后复制到系统目录：
+
+```text
+sudo cp ros.key /usr/share/keyrings/ros-archive-keyring.gpg
+```
+
+这样密钥就设置好了。现在有两个问题：
+
+- 不同镜像源需要的密钥是不同的吗？
+
+  不是。虽然镜像源的网址不一样，但他们都是ros官方镜像的复制粘贴版本，需要的密钥都是相同的。
+
+- 这个密钥是不可以分享给他人的吗？
+
+  不是。不要被密钥这个名字骗了，密钥只是怕你误安装ros的保护手段，密钥在ros官方那里也都是全公开的。
+
+### 4.3 安装ROS
+
+准备就绪以后就可以安装ROS了，注意这一步需要花掉几个G的网络数据，如果你是用手机热点连接的树莓派的话，请为你的流量考虑一下。
+
+```text
+sudo apt update
+sudo apt install ros-noetic-desktop-full
+```
+
+安装ros的过程会非常漫长，可能会有一个小时甚至两个小时，你可以去干点别的。正常情况下，如果前面十几行代码正常出现没有报错，已经能看到开始安装东西了，那么整个过程就不会报错，放心去做别的事情就行。
+
+### 4.4 安装rosdep
+
+rosdep是ROS的一个库，是用来管理自动安装ros包的系统依赖项的，当你安装一些别的东西需要调用系统级的库的时候，rosdep会自己去找这些库的位置。
+
+或者你可以理解为，当你安装一个ros的库而ros告诉你找不到文件或目录的时候，你就可以调用rosdep了，它会帮你找。
+
+安装过程是这样的：
+
+```text
+sudo rosdep init
+rosdep update
+```
+
+但是基本上，国内的用户安装rosdep都会遇到网络错误，并且国内网站上的很多方法也都没有用，但国内有一个叫“鱼C小甲鱼”的博主做了一个rosdepc，可以完美绕过网络问题而实现rosdep的功能：[链接](https://zhuanlan.zhihu.com/p/398754989)
+
+具体步骤是这样的：
+
+考虑到我们安装的是一个新的ubuntu系统，没有python环境，需要先装一个python环境，同时安装pip：
+
+（注意，python2在2020年就停止维护了，现在用的都是python3，并且python3的技术已经很成熟，不用担心安全和技术问题）
+
+```text
+sudo apt update
+sudo apt install python3-pip
+```
