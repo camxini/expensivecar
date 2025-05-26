@@ -1783,7 +1783,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-a
 sudo apt update
 ```
 
-### 2.2 安装ROS
+### 2.2 安装ros2
 
 先安装ROS完整桌面版，再配置环境变量：
 
@@ -1879,7 +1879,7 @@ sudo apt update
 
 正常情况下，ros2就已经安装好了。你可以通过下面的步骤来检查ros2是否已经成功安装。
 
-### 2.5 确认ROS2已经成功安装
+### 2.5 确认ros2已经成功安装
 
 在原来ROS1的环境里，想要启动ros的所有服务需要先roscore. 在ROS2里修改了所有节点的通讯方式，这就意味着你不需要再用roscore来启动了，可以直接输入ros2的指令来启动。
 
