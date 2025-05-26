@@ -302,20 +302,24 @@ class Encoder:
         self.pin_b = pin_b
         self.count = 0
         self.last_time = time.time()
-        self.lock = threading.Lock() # 创建一个锁，后续程序运行要先调用锁(with)才能运行，避免一个变量同时被多个地方改掉
-    
-        GPIO.setup(self.pin_a, GPIO.IN)
-        GPIO.setup(self.pin_b, GPIO.IN)
-        GPIO.add_event_detect(self.pin_a, GPIO.BOTH, callback=self._increment)
+        self.lock = threading.Lock()  # 创建一个锁，后续程序运行要先调用锁(with)才能运行，避免一个变量同时被多个地方改掉
+        
+        # 初始化GPIO引脚
+        GPIO.setup(self.pin_a, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.pin_b, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        
+        # 只在引脚没有被使用的情况下添加事件检测
+        if GPIO.gpio_function(self.pin_a) == GPIO.UNKNOWN:
+            GPIO.add_event_detect(self.pin_a, GPIO.BOTH, callback=self._increment)
 
-    def _increment(self, channel): # 用来计算count
+    def _increment(self, channel):  # 用来计算count
         a = GPIO.input(self.pin_a)
         b = GPIO.input(self.pin_b)
         direction = 1 if a != b else -1
         with self.lock:
             self.count += direction
 
-    def get_pulse_freq(self): # 用来根据count计算电机每秒脉冲数
+    def get_pulse_freq(self):  # 根据count计算电机每秒脉冲数
         with self.lock:
             now = time.time()
             dt = now - self.last_time
@@ -359,7 +363,7 @@ def rpm_to_pwm_linear(rpm_target):
     pwm = max(0, min(100, pwm))
     return pwm
 
-def encoder_thread_func(): # 读取电机的每秒脉冲数并转换成rpm
+def encoder_thread_func():  # 读取电机的每秒脉冲数并转换成rpm
     while True:
         freq = encoder.get_pulse_freq()
         rpm = pwm_to_rpm(freq, PPR)
