@@ -264,11 +264,9 @@ pwm.ChangeDutyCycle(pwm_duty)
 
 ```python
 while(a == 1)
-{
     A
     B
     C
-}
 ```
 
 这个代码在每一次的while循环里，都只能先运行A，A运行完再运行B，以此类推。
@@ -885,7 +883,6 @@ GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 
 while(1)
-{
   GPIO.output(TRIG, True)
   time.sleep(0.00001)
   GPIO.output(TRIG, False)
@@ -898,7 +895,6 @@ while(1)
   delta_time = stop_time - start_time
   distance = (delta_time * 34000） / 2 # 声速340m/s
   time.sleep(0.1)
-}
 ```
 
 这个代码的逻辑很明确，就是发送记一个时间，接收记一个时间，然后用声速计算距离，输出的distance就是测量到的距离。
@@ -1755,3 +1751,6 @@ Progress:
 
 那我们开始吧。
 
+## 1. 系统烧录
+
+这次使用的是从ubuntu官方提供的ubuntu 24.04 desktop的树莓派arm64镜像。
