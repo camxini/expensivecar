@@ -8,3 +8,7 @@ This is a car with Raspberry Pi 4B, HC-SR04 ultrasonic sensor, RPLIDAR A1, two c
 Cost: 1800 RMB.
 
 All the files in ubuntu of Raspberry Pi has laid here, and details are shown in another markdown file.
+
+**Phase2:** Self exploration
+
+In Progress
