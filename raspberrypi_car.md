@@ -1905,5 +1905,19 @@ ros2 run demo_nodes_cpp listener
 
 记得把一些常用的包，比如gedit或者nano或者vim安装好，也还是用sudo apt install指令就可以。
 
+## 3. 关于编码器电机
 
+电机的接线和原理在phase1当中都有提到，由于电机并没有换，因此在phase2里这部分都是一样的，包括所有的oython代码都是一样的。
 
+但是，ros2的python代码是需要在虚拟环境里面运行的。而在虚拟环境里运行调用的是虚拟环境里面的库，因此你需要在虚拟环境里面安装库：
+
+```text
+pip install RPi.GPIO
+pip install numpy
+```
+
+然后在虚拟环境中运行所有的python代码，但是需要注意，由于GPIO需要有sudo权限，而sudo权限默认调用的是系统自带的python库，因此在运行文件的时候要把python库重定向到虚拟环境的python库：
+
+```text
+sudo ~/rosdep_venv/bin/python3 test.py
+```
